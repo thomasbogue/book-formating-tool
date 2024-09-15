@@ -23,22 +23,25 @@ infilename = "/home/tbogue/Documents/Spells.pdf"
 outfilename = None
 page_number_margin = 35
 binder_folio = True
+inner_margin=3
 
-if len(sys.argv) > 0:
+if get_ipython().__class__.__name__ != "ZMQInteractiveShell":
     argparser = argparse.ArgumentParser(description="Converts a pdf file into a bindable format, combining pages together and reordering, as well as adding page numbers")
     argparser.add_argument("infilename", help="input pdf file to parse")
     argparser.add_argument("outfilename", default=None, help="output pdf file to parse.  defaults to infilname-book.pdf", nargs="?")
-    argparser.add_argument("--page-margin", dest="page_margin", default=35, type=int, help="margin from bottom or edge of page to put the page number.  Measured in points")
+    argparser.add_argument("--page-margin", dest="page_margin", default=page_number_margin, type=int, help="margin from bottom or edge of page to put the page number.  Measured in points", nargs=1)
     argparser.add_argument("--skip-binder-folio", dest="skip_binder", default=False, action="store_true")
+    argparser.add_argument("--innermargin", dest="innermargin", default=inner_margin, nargs=1)
     args = argparser.parse_args()
     infilename = args.infilename
     outfilename = args.outfilename
     page_number_margin = args.page_margin
     binder_folio = not args.skip_binder
-    print(f"processing {infilename} {'' if outfilename == None else 'to ' + outfilename + ' '}with margin {page_number_margin} and {'with' if binder_folio else 'without'} a binder folio")
+    inner_margin = args.innermargin
+print(f"processing {infilename} {'' if outfilename == None else 'to ' + outfilename + ' '}with page number margin {page_number_margin} and {'with' if binder_folio else 'without'} a binder folio and inner margin of {inner_margin}")
 
 
-# In[ ]:
+# In[3]:
 
 
 def get_page_numbers(mediabox, left_page, right_page):
@@ -57,7 +60,7 @@ def get_page_numbers(mediabox, left_page, right_page):
     return reader.pages[0]
 
 
-# In[ ]:
+# In[4]:
 
 
 def make_sheet(writer, page1, page2, page3, page4, pageNumbers=None):
@@ -67,16 +70,16 @@ def make_sheet(writer, page1, page2, page3, page4, pageNumbers=None):
     #page1.mediabox = page2.mediabox = page3.mediabox = page4.mediabox = sheet1.mediabox
     sheet1.merge_transformed_page(
         page1,
-        pypdf.Transformation().translate(width,0)
+        pypdf.Transformation().translate(width + inner_margin,0)
     )
     sheet1.merge_transformed_page(
         page4,
-        pypdf.Transformation().translate(0, 0)
+        pypdf.Transformation().translate(-inner_margin, 0)
     )
-    sheet2 = writer.add_blank_page(width = width * 2, height = height)
+    sheet2 = writer.add_blank_page(width = width * 2 + inner_margin, height = height)
     sheet2.merge_transformed_page(
         page2,
-        pypdf.Transformation().translate(0, 0)
+        pypdf.Transformation().translate(-inner_margin, 0)
     )
     sheet2.merge_transformed_page(
         page3,
@@ -88,7 +91,7 @@ def make_sheet(writer, page1, page2, page3, page4, pageNumbers=None):
     sheet2.merge_page(sheet2_numbers)
 
 
-# In[ ]:
+# In[5]:
 
 
 def signature_plan(num_pages, binder_folio=True):
@@ -127,7 +130,7 @@ def signature_plan(num_pages, binder_folio=True):
     return({"page_list":all_pages, "signatures":signatures})
 
 
-# In[ ]:
+# In[6]:
 
 
 # returns a blank page if page_id is 0 or the page otherwise
@@ -153,7 +156,7 @@ def get_page(reader, page_id, reverse=False):
         return reader.pages[page_id - 1]
 
 
-# In[ ]:
+# In[7]:
 
 
 def convert_pdf(infilename, outfileName=None):
@@ -183,7 +186,7 @@ def convert_pdf(infilename, outfileName=None):
     writer.write(outfileName)
 
 
-# In[ ]:
+# In[8]:
 
 
 convert_pdf(infilename)
