@@ -1,3 +1,3 @@
 #!/bin/bash
 
-jupyter nbconvert --to script book-signature-generator.ipynb
+jupyter nbconvert --to script book_signature_generator.ipynb

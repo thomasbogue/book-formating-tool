@@ -25,32 +25,6 @@ import sys
 # In[3]:
 
 
-# parse arguments and set defaults
-infilename = "/home/tbogue/Documents/Spells.pdf"
-outfilename = None
-page_number_margin = 35
-binder_folio = True
-inner_margin=3
-
-if not "get_ipython" in vars():
-    argparser = argparse.ArgumentParser(description="Converts a pdf file into a bindable format, combining pages together and reordering, as well as adding page numbers")
-    argparser.add_argument("infilename", help="input pdf file to parse")
-    argparser.add_argument("outfilename", default=None, help="output pdf file to parse.  defaults to infilname-book.pdf", nargs="?")
-    argparser.add_argument("--page-margin", dest="page_margin", default=page_number_margin, type=int, help="margin from bottom or edge of page to put the page number.  Measured in points", nargs=1)
-    argparser.add_argument("--skip-binder-folio", dest="skip_binder", default=False, action="store_true")
-    argparser.add_argument("--innermargin", dest="innermargin", default=inner_margin, nargs=1)
-    args = argparser.parse_args()
-    infilename = args.infilename
-    outfilename = args.outfilename
-    page_number_margin = args.page_margin
-    binder_folio = not args.skip_binder
-    inner_margin = args.innermargin
-print(f"processing {infilename} {'' if outfilename == None else 'to ' + outfilename + ' '}with page number margin {page_number_margin} and {'with' if binder_folio else 'without'} a binder folio and inner margin of {inner_margin}")
-
-
-# In[4]:
-
-
 # takes a pypdf.mediabox and returns a page with the left and right page numbers added
 # left_page and right_page are the page numbers
 # returns the new page with page numbers only
@@ -70,7 +44,7 @@ def add_page_numbers(mediabox, left_page, right_page):
     return reader.pages[0]
 
 
-# In[5]:
+# In[4]:
 
 
 # sets up a folio with the given four pages
@@ -102,7 +76,7 @@ def make_folio(writer, page1, page2, page3, page4, pageNumbers):
     sheet2.merge_page(sheet2_numbers)
 
 
-# In[6]:
+# In[5]:
 
 
 # returns a list of lists.  each sublist contains a list of page numbers for that folio
@@ -145,7 +119,7 @@ def signature_plan(num_pages, binder_folio=True):
     return(signatures)
 
 
-# In[7]:
+# In[6]:
 
 
 # returns a blank page if page_id is 0 or the page otherwise
@@ -158,7 +132,7 @@ def get_page(reader, page_id, reverse=False):
         return reader.pages[page_id - 1]
 
 
-# In[8]:
+# In[7]:
 
 
 # convert the pdf infilename to a ready-to-print/bind pdf outfilename
@@ -188,8 +162,30 @@ def convert_pdf(infilename, outfileName=None):
     writer.write(outfileName)
 
 
-# In[9]:
+# In[8]:
 
 
-convert_pdf(infilename)
+if __name__ == "__main__":
+    # parse arguments and set defaults
+    infilename = "/home/tbogue/Documents/Spells.pdf"
+    outfilename = None
+    page_number_margin = 35
+    binder_folio = True
+    inner_margin=3
+
+    if not "get_ipython" in vars():
+        argparser = argparse.ArgumentParser(description="Converts a pdf file into a bindable format, combining pages together and reordering, as well as adding page numbers")
+        argparser.add_argument("infilename", help="input pdf file to parse")
+        argparser.add_argument("outfilename", default=None, help="output pdf file to parse.  defaults to infilname-book.pdf", nargs="?")
+        argparser.add_argument("--page-margin", dest="page_margin", default=page_number_margin, type=int, help="margin from bottom or edge of page to put the page number.  Measured in points", nargs=1)
+        argparser.add_argument("--skip-binder-folio", dest="skip_binder", default=False, action="store_true")
+        argparser.add_argument("--innermargin", dest="innermargin", default=inner_margin, nargs=1)
+        args = argparser.parse_args()
+        infilename = args.infilename
+        outfilename = args.outfilename
+        page_number_margin = args.page_margin
+        binder_folio = not args.skip_binder
+        inner_margin = args.innermargin
+    print(f"processing {infilename} {'' if outfilename == None else 'to ' + outfilename + ' '}with page number margin {page_number_margin} and {'with' if binder_folio else 'without'} a binder folio and inner margin of {inner_margin}")
+    convert_pdf(infilename)
 
