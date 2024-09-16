@@ -14,18 +14,25 @@ import argparse
 import sys
 
 
-# PaperSizes are in pts, which are .35 mm
-
 # In[2]:
 
 
+"get_ipython" in vars()
+
+
+# PaperSizes are in pts, which are .35 mm
+
+# In[3]:
+
+
+# parse arguments and set defaults
 infilename = "/home/tbogue/Documents/Spells.pdf"
 outfilename = None
 page_number_margin = 35
 binder_folio = True
 inner_margin=3
 
-if get_ipython().__class__.__name__ != "ZMQInteractiveShell":
+if not "get_ipython" in vars():
     argparser = argparse.ArgumentParser(description="Converts a pdf file into a bindable format, combining pages together and reordering, as well as adding page numbers")
     argparser.add_argument("infilename", help="input pdf file to parse")
     argparser.add_argument("outfilename", default=None, help="output pdf file to parse.  defaults to infilname-book.pdf", nargs="?")
@@ -41,10 +48,13 @@ if get_ipython().__class__.__name__ != "ZMQInteractiveShell":
 print(f"processing {infilename} {'' if outfilename == None else 'to ' + outfilename + ' '}with page number margin {page_number_margin} and {'with' if binder_folio else 'without'} a binder folio and inner margin of {inner_margin}")
 
 
-# In[3]:
+# In[4]:
 
 
-def get_page_numbers(mediabox, left_page, right_page):
+# takes a pypdf.mediabox and returns a page with the left and right page numbers added
+# left_page and right_page are the page numbers
+# returns the new page with page numbers only
+def add_page_numbers(mediabox, left_page, right_page):
     tmpfile="tmprl.pdf"
     canvas = reportlab.pdfgen.canvas.Canvas(tmpfile, pagesize=(mediabox[2], mediabox[3]))
     # make sure inputs are strings
@@ -60,14 +70,15 @@ def get_page_numbers(mediabox, left_page, right_page):
     return reader.pages[0]
 
 
-# In[4]:
+# In[5]:
 
 
-def make_sheet(writer, page1, page2, page3, page4, pageNumbers=None):
+# sets up a folio with the given four pages
+# pagenumbers should be a list of page numbers for the four pages
+def make_folio(writer, page1, page2, page3, page4, pageNumbers):
     width = page1.mediabox[2]
     height = page1.mediabox[3]
     sheet1 = writer.add_blank_page(width = width * 2, height = height)
-    #page1.mediabox = page2.mediabox = page3.mediabox = page4.mediabox = sheet1.mediabox
     sheet1.merge_transformed_page(
         page1,
         pypdf.Transformation().translate(width + inner_margin,0)
@@ -85,23 +96,27 @@ def make_sheet(writer, page1, page2, page3, page4, pageNumbers=None):
         page3,
         pypdf.Transformation().translate(width, 0)
     )
-    sheet1_numbers = get_page_numbers(sheet1.mediabox, pageNumbers[3], pageNumbers[0])
-    sheet2_numbers = get_page_numbers(sheet2.mediabox, pageNumbers[1], pageNumbers[2])
+    sheet1_numbers = add_page_numbers(sheet1.mediabox, pageNumbers[3], pageNumbers[0])
+    sheet2_numbers = add_page_numbers(sheet2.mediabox, pageNumbers[1], pageNumbers[2])
     sheet1.merge_page(sheet1_numbers)
     sheet2.merge_page(sheet2_numbers)
 
 
-# In[5]:
+# In[6]:
 
 
+# returns a list of lists.  each sublist contains a list of page numbers for that folio
+# page number of 0 represents a blank page instead of one from the source document
+# if binder_folio is True it will make sure that the first and last two pages are blank 
+# so you either have a cover sheet or a page to glue to the cover
 def signature_plan(num_pages, binder_folio=True):
-    sheets_per_signature = 8
+    folios_per_signature = 8
     # reserve 4 pages for binding
     total_pages = num_pages + 4
-    # add extra pages to make an integral number of sheets
+    # add extra pages to make an integral number of folios
     num_sheets = math.ceil(total_pages / 4)
     total_pages = 4 * num_sheets
-    num_signatures = math.ceil(num_sheets / sheets_per_signature)
+    num_signatures = math.ceil(num_sheets / folios_per_signature)
     extra_pages = total_pages - num_pages
     pairs_of_extra_pages = math.ceil(extra_pages / 2)
     extra_front_pages = 2 * math.ceil(pairs_of_extra_pages / 2)
@@ -119,18 +134,18 @@ def signature_plan(num_pages, binder_folio=True):
         ending_page = current_page + num_sheets_in_signature * 4 - 1
         for sheet_num in range(0, num_sheets_in_signature):
             sheet = [ 
-                starting_page + sheet_num * 2,
-                starting_page + sheet_num * 2 + 1,
-                ending_page - sheet_num * 2 - 1,
-                ending_page - sheet_num * 2
+                all_pages[starting_page + sheet_num * 2],
+                all_pages[starting_page + sheet_num * 2 + 1],
+                all_pages[ending_page - sheet_num * 2 - 1],
+                all_pages[ending_page - sheet_num * 2]
             ]
             signature.append(sheet)
         signatures.append(signature)
         current_page = ending_page + 1
-    return({"page_list":all_pages, "signatures":signatures})
+    return(signatures)
 
 
-# In[6]:
+# In[7]:
 
 
 # returns a blank page if page_id is 0 or the page otherwise
@@ -140,42 +155,29 @@ def get_page(reader, page_id, reverse=False):
         height = reader.pages[1].mediabox[3]
         return pypdf._page.PageObject.create_blank_page(height=height, width=width)
     else:
-#        page_editor = pypdf.PdfWriter()
-#        page = reader.pages[page_id - 1]
-#        page_editor.add_page(page)
-#        width = page.mediabox[2]
-#        rect = (5,5,23,20)
-#        if (page_id % 2 == 0) != reverse :
-#            rect = (width-rect[2], 5, width-rect[0], 20)
-#        page_num_annotation = pypdf.annotations.FreeText(
-#            rect=rect,
-#            text=f'{page_id}'
-#        )
-#       page_editor.add_annotation(page_number=0, annotation=page_num_annotation)
-#       page_editor.write("tmp.pdf")
         return reader.pages[page_id - 1]
 
 
-# In[7]:
+# In[8]:
 
 
+# convert the pdf infilename to a ready-to-print/bind pdf outfilename
+# outfilename defaults to infilename-book.pdf
 def convert_pdf(infilename, outfileName=None):
     if outfileName == None:
         outfileName = infilename[0:-4] + "-book.pdf"
     reader = pypdf.PdfReader(infilename)
     writer = pypdf.PdfWriter()
-    plan = signature_plan(len(reader.pages), binder_folio)
-    signatures = plan['signatures']
-    page_list = plan['page_list']
+    signatures = signature_plan(len(reader.pages), binder_folio)
     for signature in signatures:
         for sheet in signature:            
             page_nums = [
-                page_list[sheet[0]],
-                page_list[sheet[1]],
-                page_list[sheet[2]],
-                page_list[sheet[3]]
+                sheet[0],
+                sheet[1],
+                sheet[2],
+                sheet[3]
             ]
-            make_sheet(
+            make_folio(
                 writer, 
                 get_page(reader, page_nums[0], True),
                 get_page(reader, page_nums[1], True),
@@ -186,14 +188,8 @@ def convert_pdf(infilename, outfileName=None):
     writer.write(outfileName)
 
 
-# In[8]:
+# In[9]:
 
 
 convert_pdf(infilename)
-
-
-# In[ ]:
-
-
-
 
