@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="us">
+  <head>
+    <title>Convert pdf to book-printable format</title>
+    <script>
+      async function shutdown_now() {
+          console.log("running this stupid thing now");
+          try {
+            await fetch("/shutdown");
+          }
+          catch (error) {
+            console.log(error);
+          }
+          setTimeout(window.close(), 1000);
+      }
+      function shutdown() {
+          setTimeout(shutdown_now, 1000);
+          console.log("running this stupid thing");
+          return true;
+      }
+    </script>
+  </head>
+  <body>
+    <form action="process" method="post" enctype="multipart/form-data" target="_blank">
+    <label>What pdf file do you want to convert?</label> <input type="file" name="infilename" accept="application/pdf"/><br>
+    <label>What extra margin (in points) do you want in the middle of each folio?</label> <input type="text" name="inner_margin" value="3"/><br>
+    <label>Do you want an extra sheet as a cover or to glue to the cover?</label> <input type="checkbox" name="binder_folio" checked="true"><br>
+    <label>What margin should the page numbers have (in points)?</label> <input type="text" name="page_margin" value="35"><br>
+    <!-- <input type="submit" onclick="javascript:return submit_process();" /><br> -->
+    <input type="submit" onclick="javascript:shutdown();" /><br>
+    </form>
+  </body>
+</html>

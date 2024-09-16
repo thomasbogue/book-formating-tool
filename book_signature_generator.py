@@ -28,7 +28,7 @@ import sys
 # takes a pypdf.mediabox and returns a page with the left and right page numbers added
 # left_page and right_page are the page numbers
 # returns the new page with page numbers only
-def add_page_numbers(mediabox, left_page, right_page):
+def add_page_numbers(mediabox, left_page, right_page, page_number_margin=35):
     tmpfile="tmprl.pdf"
     canvas = reportlab.pdfgen.canvas.Canvas(tmpfile, pagesize=(mediabox[2], mediabox[3]))
     # make sure inputs are strings
@@ -49,7 +49,7 @@ def add_page_numbers(mediabox, left_page, right_page):
 
 # sets up a folio with the given four pages
 # pagenumbers should be a list of page numbers for the four pages
-def make_folio(writer, page1, page2, page3, page4, pageNumbers):
+def make_folio(writer, page1, page2, page3, page4, pageNumbers, inner_margin=3, page_number_margin=35):
     width = page1.mediabox[2]
     height = page1.mediabox[3]
     sheet1 = writer.add_blank_page(width = width * 2, height = height)
@@ -70,8 +70,8 @@ def make_folio(writer, page1, page2, page3, page4, pageNumbers):
         page3,
         pypdf.Transformation().translate(width, 0)
     )
-    sheet1_numbers = add_page_numbers(sheet1.mediabox, pageNumbers[3], pageNumbers[0])
-    sheet2_numbers = add_page_numbers(sheet2.mediabox, pageNumbers[1], pageNumbers[2])
+    sheet1_numbers = add_page_numbers(sheet1.mediabox, pageNumbers[3], pageNumbers[0], page_number_margin=page_number_margin)
+    sheet2_numbers = add_page_numbers(sheet2.mediabox, pageNumbers[1], pageNumbers[2], page_number_margin=page_number_margin)
     sheet1.merge_page(sheet1_numbers)
     sheet2.merge_page(sheet2_numbers)
 
@@ -123,7 +123,7 @@ def signature_plan(num_pages, binder_folio=True):
 
 
 # returns a blank page if page_id is 0 or the page otherwise
-def get_page(reader, page_id, reverse=False):
+def get_page(reader, page_id):
     if page_id == 0:
         width = reader.pages[0].mediabox[2]
         height = reader.pages[1].mediabox[3]
@@ -137,9 +137,9 @@ def get_page(reader, page_id, reverse=False):
 
 # convert the pdf infilename to a ready-to-print/bind pdf outfilename
 # outfilename defaults to infilename-book.pdf
-def convert_pdf(infilename, outfileName=None):
-    if outfileName == None:
-        outfileName = infilename[0:-4] + "-book.pdf"
+def convert_pdf(infilename, outfilename=None, binder_folio=True, inner_margin=3, page_number_margin=35):
+    if outfilename == None:
+        outfilename = infilename[0:-4] + "-book.pdf"
     reader = pypdf.PdfReader(infilename)
     writer = pypdf.PdfWriter()
     signatures = signature_plan(len(reader.pages), binder_folio)
@@ -153,13 +153,15 @@ def convert_pdf(infilename, outfileName=None):
             ]
             make_folio(
                 writer, 
-                get_page(reader, page_nums[0], True),
-                get_page(reader, page_nums[1], True),
-                get_page(reader, page_nums[2], True),
-                get_page(reader, page_nums[3], True),
-                page_nums
+                get_page(reader, page_nums[0]),
+                get_page(reader, page_nums[1]),
+                get_page(reader, page_nums[2]),
+                get_page(reader, page_nums[3]),
+                page_nums, 
+                inner_margin=inner_margin, 
+                page_number_margin=page_number_margin
             )
-    writer.write(outfileName)
+    writer.write(outfilename)
 
 
 # In[8]:
@@ -178,14 +180,14 @@ if __name__ == "__main__":
         argparser.add_argument("infilename", help="input pdf file to parse")
         argparser.add_argument("outfilename", default=None, help="output pdf file to parse.  defaults to infilname-book.pdf", nargs="?")
         argparser.add_argument("--page-margin", dest="page_margin", default=page_number_margin, type=int, help="margin from bottom or edge of page to put the page number.  Measured in points", nargs=1)
-        argparser.add_argument("--skip-binder-folio", dest="skip_binder", default=False, action="store_true")
-        argparser.add_argument("--innermargin", dest="innermargin", default=inner_margin, nargs=1)
+        argparser.add_argument("--skip-binder-folio", dest="skip_binder", default=False, action="store_true", help="if this is not specified a blank sheet will be at the start of the first folio and the end of the second folio to glue down to the covers")
+        argparser.add_argument("--inner_margin", dest="inner_margin", default=inner_margin, nargs=1, help="extra margin to have in the middle of each folio")
         args = argparser.parse_args()
         infilename = args.infilename
         outfilename = args.outfilename
         page_number_margin = args.page_margin
         binder_folio = not args.skip_binder
-        inner_margin = args.innermargin
+        inner_margin = args.inner_margin
     print(f"processing {infilename} {'' if outfilename == None else 'to ' + outfilename + ' '}with page number margin {page_number_margin} and {'with' if binder_folio else 'without'} a binder folio and inner margin of {inner_margin}")
-    convert_pdf(infilename)
+    convert_pdf(infilename, binder_folio=binder_folio, page_number_margin=page_number_margin, inner_margin=inner_margin, outfilename=outfilename)
 
